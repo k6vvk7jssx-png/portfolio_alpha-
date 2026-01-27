@@ -1,28 +1,23 @@
 "use client";
 import React, { useState, useEffect } from 'react';
-import { TrendingUp, TrendingDown, RefreshCw, Plus, Trash2, BarChart3, Newspaper, BrainCircuit } from 'lucide-react';
+import { TrendingUp, RefreshCw, Plus, Trash2, BarChart3, Newspaper, BrainCircuit } from 'lucide-react';
 import { stockList } from './stockList';
-// 1. IMPORTIAMO GLI STRUMENTI CLERK
 import { SignInButton, SignedIn, SignedOut, UserButton, useUser } from '@clerk/nextjs';
 
 const APP_NAME = "Portfolio Alpha";
 
 export default function Home() {
-  // 2. RECUPERIAMO I DATI UTENTE
   const { user } = useUser();
-
   const [stocks, setStocks] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
   const [analysis, setAnalysis] = useState<any>(null);
   const [loadingNews, setLoadingNews] = useState(false);
 
-  // Caricamento Iniziale
   useEffect(() => {
     const saved = localStorage.getItem('portfolio_alpha_stocks');
     if (saved) setStocks(JSON.parse(saved));
   }, []);
 
-  // Aggiornamento Prezzi Simulato
   const updatePrices = () => {
     const updated = stocks.map(stock => ({
       ...stock,
@@ -60,12 +55,25 @@ export default function Home() {
     saveData(updated);
   };
 
+  // --- QUI C'È LA MAGIA: IL NUOVO PROMPT ---
   const runAnalysis = async () => {
     setLoadingNews(true);
     setAnalysis(null);
     try {
-      const portfolioText = stocks.map(s => `${s.shares} azioni di ${s.name}`).join(', ');
-      const query = `Analizza questo portafoglio: ${portfolioText}. Dammi Health Score (0-100), Sentiment e Consigli.`;
+      const portfolioText = stocks.map(s => `${s.shares} azioni di ${s.name} (${s.ticker})`).join(', ');
+      
+      // 👇 ECCO IL PROMPT "WALL STREET" INSERITO PER TE 👇
+      const query = `
+        Agisci come un analista finanziario senior di Wall Street, esperto e diretto.
+        Analizza questo portafoglio: ${portfolioText}.
+        
+        Basandoti sulle news attuali e sull'analisi tecnica, fornisci:
+        1. Un "Health Score" severo da 0 a 100 (valuta diversificazione e rischio).
+        2. Un'analisi macroeconomica rapida del sentiment di mercato per questi settori.
+        3. Tre consigli tattici immediati (Cosa accumulare, cosa alleggerire, cosa tenere d'occhio).
+        
+        Usa un tono professionale, evita frasi generiche e sii specifico sui rischi.
+      `;
       
       const res = await fetch('/api/analyze', { 
         method: 'POST', 
@@ -81,13 +89,11 @@ export default function Home() {
     <main className="min-h-screen bg-slate-50 p-4 md:p-8 font-sans text-slate-900">
       <div className="max-w-6xl mx-auto">
         
-        {/* --- HEADER CON LOGIN --- */}
         <header className="flex flex-col md:flex-row justify-between items-center mb-8 bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
           <div className="mb-4 md:mb-0">
             <h1 className="text-2xl font-black flex items-center gap-2 tracking-tight text-slate-800">
               <BarChart3 className="text-blue-600" /> {APP_NAME}
             </h1>
-            {/* Se l'utente è loggato, salutalo! */}
             <SignedIn>
               <p className="text-sm text-slate-500 mt-1">Bentornato, {user?.firstName}!</p>
             </SignedIn>
@@ -99,9 +105,7 @@ export default function Home() {
               <p className="text-4xl font-black text-slate-900">${total.toLocaleString(undefined, {minimumFractionDigits: 2})}</p>
             </div>
             
-            {/* ZONA LOGIN */}
             <div className="border-l pl-6 border-slate-200">
-              {/* Se sei FUORI -> Mostra bottone Login */}
               <SignedOut>
                 <SignInButton mode="modal">
                   <button className="bg-slate-900 text-white px-5 py-2.5 rounded-xl text-sm font-bold hover:bg-slate-800 transition shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
@@ -109,8 +113,6 @@ export default function Home() {
                   </button>
                 </SignInButton>
               </SignedOut>
-
-              {/* Se sei DENTRO -> Mostra Avatar utente */}
               <SignedIn>
                 <UserButton afterSignOutUrl="/"/>
               </SignedIn>
@@ -118,10 +120,7 @@ export default function Home() {
           </div>
         </header>
 
-        {/* --- CONTENUTO PRINCIPALE --- */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          
-          {/* COLONNA 1: AZIONI */}
           <div className="lg:col-span-2 space-y-6">
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
               <div className="flex justify-between items-center mb-6">
@@ -155,7 +154,6 @@ export default function Home() {
                 ))}
               </div>
 
-              {/* AGGIUNTA AZIONI */}
               <div className="mt-6 pt-6 border-t border-slate-100">
                 <p className="text-xs font-bold text-slate-400 mb-3 uppercase">Aggiungi al portafoglio</p>
                 <div className="flex gap-2 flex-wrap">
@@ -173,7 +171,6 @@ export default function Home() {
             </div>
           </div>
 
-          {/* COLONNA 2: INTELLIGENZA ARTIFICIALE */}
           <div className="space-y-6">
             <div className="bg-slate-900 text-white p-6 rounded-2xl shadow-xl relative overflow-hidden">
               <div className="absolute top-0 right-0 p-32 bg-blue-500 rounded-full blur-3xl opacity-20 -mr-16 -mt-16"></div>
@@ -200,7 +197,6 @@ export default function Home() {
               </div>
             </div>
 
-            {/* RISULTATI AI */}
             {analysis && (
               <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 animate-in slide-in-from-bottom-4">
                 <div className="flex justify-between items-start mb-4">
@@ -214,7 +210,7 @@ export default function Home() {
                   </span>
                 </div>
                 
-                <div className="prose prose-sm text-slate-600 mb-6">
+                <div className="prose prose-sm text-slate-600 mb-6 whitespace-pre-line">
                   <p>{analysis.analysis}</p>
                 </div>
 
