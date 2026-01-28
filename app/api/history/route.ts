@@ -1,29 +1,41 @@
 import { NextResponse } from 'next/server';
-import yahooFinance from 'yahoo-finance2';
 
-export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const query = searchParams.get('q');
-
-  if (!query || query.length < 2) {
-    return NextResponse.json([]);
-  }
-
+export async function POST(req: Request) {
   try {
-    // Aggiungiamo ': any' per zittire TypeScript
-    const results: any = await yahooFinance.search(query, { newsCount: 0, quotesCount: 10 });
-    
-    // Ora TypeScript non si lamenta più di .quotes
-    const suggestions = results.quotes.map((item: any) => ({
-      ticker: item.symbol,
-      label: item.longname || item.shortname || item.symbol,
-      isin: item.exchDisp || 'N/A', 
-      type: item.quoteType
-    }));
+    const body = await req.json();
+    const { ticker } = body;
 
-    return NextResponse.json(suggestions);
+    if (!ticker) return NextResponse.json([], { status: 400 });
+
+    try {
+        // Scarichiamo dati a 1 mese (1mo) con intervallo 1 giorno (1d)
+        const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1d&range=1mo`;
+        
+        const response = await fetch(url, {
+            headers: { 'User-Agent': 'Mozilla/5.0' }
+        });
+        
+        const data = await response.json();
+        const result = data?.chart?.result?.[0];
+
+        if (!result) return NextResponse.json([]);
+
+        const timestamps = result.timestamp;
+        const quotes = result.indicators.quote[0].close;
+
+        // Uniamo date e prezzi
+        const chartData = timestamps.map((time: number, i: number) => ({
+            date: new Date(time * 1000).toLocaleDateString('it-IT', { weekday: 'short' }),
+            price: quotes[i]
+        })).filter((item: any) => item.price).slice(-7); // Prendiamo gli ultimi 7 giorni validi
+
+        return NextResponse.json(chartData);
+
+    } catch (err) {
+        console.error("Errore fetch grafico:", err);
+        return NextResponse.json([]);
+    }
   } catch (error) {
-    console.error("Search Error:", error);
-    return NextResponse.json([]);
+    return NextResponse.json([]); 
   }
 }

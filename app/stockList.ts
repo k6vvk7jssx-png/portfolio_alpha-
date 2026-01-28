@@ -1,73 +1,97 @@
 export const stockList = [
-  // --- 🌍 ETF MONDIALI (ALL-WORLD & STRATEGICI) ---
-  { label: "Vanguard FTSE All-World (Acc) - Il Re", ticker: "VWCE.DE", isin: "IE00BK5BQT80" },
-  { label: "Vanguard FTSE All-World (Dist)", ticker: "VGWL.DE", isin: "IE00B3RBWM25" },
-  { label: "iShares Core MSCI World (Acc)", ticker: "SWDA.MI", isin: "IE00B4L5Y983" },
-  { label: "iShares MSCI ACWI (All Country)", ticker: "IUSQ.DE", isin: "IE00B6R52259" },
-  { label: "Xtrackers MSCI World", ticker: "XDWD.DE", isin: "IE00BJ0KDQ92" },
-  { label: "Amundi MSCI World", ticker: "CW8.PA", isin: "LU1681043599" },
+  // --- 🇺🇸 BIG TECH & AI (Magnificent 7) ---
+  { label: "Apple Inc.", ticker: "AAPL", type: "Equity", category: "Tech", keywords: "iphone mac tech telefono" },
+  { label: "NVIDIA Corp.", ticker: "NVDA", type: "Equity", category: "Tech", keywords: "ai chip intelligenza artificiale schede video" },
+  { label: "Microsoft", ticker: "MSFT", type: "Equity", category: "Tech", keywords: "windows office cloud azure ai" },
+  { label: "Amazon", ticker: "AMZN", type: "Equity", category: "Tech", keywords: "ecommerce cloud aws shopping" },
+  { label: "Google (Alphabet)", ticker: "GOOGL", type: "Equity", category: "Tech", keywords: "ricerca youtube android ads" },
+  { label: "Meta (Facebook)", ticker: "META", type: "Equity", category: "Tech", keywords: "social instagram whatsapp vr" },
+  { label: "Tesla", ticker: "TSLA", type: "Equity", category: "Auto", keywords: "auto elettrica ev elon musk" },
+  { label: "Palantir", ticker: "PLTR", type: "Equity", category: "Tech", keywords: "data ai difesa software" },
+  { label: "Netflix", ticker: "NFLX", type: "Equity", category: "Tech", keywords: "streaming film serie tv" },
+  { label: "AMD", ticker: "AMD", type: "Equity", category: "Tech", keywords: "chip processori ryzen" },
+  { label: "Intel", ticker: "INTC", type: "Equity", category: "Tech", keywords: "chip processori" },
+  { label: "Salesforce", ticker: "CRM", type: "Equity", category: "Tech", keywords: "software crm cloud" },
+  { label: "Adobe", ticker: "ADBE", type: "Equity", category: "Tech", keywords: "photoshop creative cloud" },
+  { label: "Spotify", ticker: "SPOT", type: "Equity", category: "Tech", keywords: "musica streaming audio" },
+  { label: "Uber", ticker: "UBER", type: "Equity", category: "Tech", keywords: "taxi trasporti food" },
+  { label: "Airbnb", ticker: "ABNB", type: "Equity", category: "Tech", keywords: "viaggi case vacanze" },
+
+  // --- 🇮🇹 ITALIA (I Campioni) ---
+  { label: "Ferrari", ticker: "RACE.MI", type: "Equity", category: "Auto", keywords: "auto lusso f1 italia rossa" },
+  { label: "Intesa Sanpaolo", ticker: "ISP.MI", type: "Equity", category: "Finance", keywords: "banca italia dividendi" },
+  { label: "UniCredit", ticker: "UCG.MI", type: "Equity", category: "Finance", keywords: "banca italia" },
+  { label: "Enel", ticker: "ENEL.MI", type: "Equity", category: "Energy", keywords: "energia elettricità green italia" },
+  { label: "Eni", ticker: "ENI.MI", type: "Equity", category: "Energy", keywords: "petrolio gas energia cane sei zampe" },
+  { label: "Stellantis", ticker: "STLAM.MI", type: "Equity", category: "Auto", keywords: "fiat auto jeep peugeot" },
+  { label: "Leonardo", ticker: "LDO.MI", type: "Equity", category: "Defense", keywords: "difesa aerei militare cybersecurity" },
+  { label: "Generali", ticker: "G.MI", type: "Equity", category: "Finance", keywords: "assicurazioni leone trieste" },
+  { label: "Moncler", ticker: "MONC.MI", type: "Equity", category: "Luxury", keywords: "moda piumini lusso" },
+  { label: "Brunello Cucinelli", ticker: "BC.MI", type: "Equity", category: "Luxury", keywords: "moda cachemire lusso" },
+  { label: "Poste Italiane", ticker: "PST.MI", type: "Equity", category: "Finance", keywords: "poste logistica risparmio" },
+  { label: "Terna", ticker: "TRN.MI", type: "Equity", category: "Energy", keywords: "rete elettrica infrastrutture" },
+  { label: "Snam", ticker: "SRG.MI", type: "Equity", category: "Energy", keywords: "gas infrastrutture" },
+  { label: "Mediobanca", ticker: "MB.MI", type: "Equity", category: "Finance", keywords: "banca investimenti" },
+  { label: "Prysmian", ticker: "PRY.MI", type: "Equity", category: "Ind", keywords: "cavi fibra ottica industria" },
+  { label: "Campari", ticker: "CPR.MI", type: "Equity", category: "Food", keywords: "aperitivo bevande alcol" },
+
+  // --- 💧 ETF TEMATICI (Acqua, Cyber, Green) ---
+  { label: "iShares Global Water (Acqua)", ticker: "IH2O.MI", type: "ETF", category: "Water", keywords: "acqua water idrico risorse blu" },
+  { label: "Lyxor World Water", ticker: "WAT.MI", type: "ETF", category: "Water", keywords: "acqua water risorse idriche" },
+  { label: "L&G Cyber Security", ticker: "ISPY.MI", type: "ETF", category: "Tech", keywords: "hacker sicurezza informatica cyber" },
+  { label: "iShares Global Clean Energy", ticker: "INRG.MI", type: "ETF", category: "Energy", keywords: "energia pulita rinnovabili sole vento" },
+  { label: "VanEck Semiconductor", ticker: "SMH", type: "ETF", category: "Tech", keywords: "chip semiconduttori tecnologia" },
+  { label: "iShares Automation & Robotics", ticker: "RBOT.MI", type: "ETF", category: "Tech", keywords: "robot ai automazione" },
+  { label: "Global Uranium", ticker: "URNM.L", type: "ETF", category: "Energy", keywords: "uranio nucleare energia" },
+
+  // --- 🌍 ETF CORE (Mondiali & S&P) ---
+  { label: "Vanguard S&P 500 (USA)", ticker: "VOO", type: "ETF", category: "USA", keywords: "america usa 500 aziende warren buffett" },
+  { label: "Vanguard FTSE All-World (Mondo)", ticker: "VWCE.DE", type: "ETF", category: "World", keywords: "mondo globale diversificazione pac" },
+  { label: "iShares Core MSCI World", ticker: "SWDA.MI", type: "ETF", category: "World", keywords: "mondo sviluppato msci" },
+  { label: "Invesco QQQ (Nasdaq 100)", ticker: "QQQ", type: "ETF", category: "Tech", keywords: "tech usa nasdaq crescita" },
+  { label: "Vanguard LifeStrategy 80%", ticker: "VNGA80.MI", type: "ETF", category: "World", keywords: "bilanciato lifestrategy 80/20" },
+  { label: "Vanguard LifeStrategy 60%", ticker: "VNGA60.MI", type: "ETF", category: "World", keywords: "bilanciato lifestrategy 60/40" },
+  { label: "iShares Core Emerging Markets", ticker: "EIMI.MI", type: "ETF", category: "World", keywords: "paesi emergenti cina india" },
+
+  // --- ₿ CRYPTO & BLOCKCHAIN ---
+  { label: "Bitcoin", ticker: "BTC-USD", type: "Crypto", category: "Crypto", keywords: "crypto oro digitale blockchain satoshi" },
+  { label: "Ethereum", ticker: "ETH-USD", type: "Crypto", category: "Crypto", keywords: "crypto smart contract defi vitalik" },
+  { label: "Solana", ticker: "SOL-USD", type: "Crypto", category: "Crypto", keywords: "crypto veloce nft" },
+  { label: "Ripple (XRP)", ticker: "XRP-USD", type: "Crypto", category: "Crypto", keywords: "crypto banche pagamenti" },
+  { label: "Cardano", ticker: "ADA-USD", type: "Crypto", category: "Crypto", keywords: "crypto ada" },
+  { label: "Coinbase", ticker: "COIN", type: "Equity", category: "Finance", keywords: "crypto exchange azioni" },
+  { label: "MicroStrategy", ticker: "MSTR", type: "Equity", category: "Tech", keywords: "bitcoin azioni saylor" },
+
+  // --- 🥇 COMMODITIES (Oro, Petrolio) ---
+  { label: "Oro Fisico (Gold ETC)", ticker: "IGLN.L", type: "ETF", category: "Gold", keywords: "oro gold rifugio metallo prezioso" },
+  { label: "Argento Fisico (Silver ETC)", ticker: "PHAG.MI", type: "ETF", category: "Gold", keywords: "argento silver metallo" },
+  { label: "Petrolio WTI", ticker: "CRUD.MI", type: "ETF", category: "Energy", keywords: "petrolio oil energia" },
+  { label: "Rio Tinto", ticker: "RIO.L", type: "Equity", category: "Ind", keywords: "miniere metalli risorse" },
+
+  // --- 🛍️ CONSUMER, LUSSO & ALTRO ---
+  { label: "LVMH (Louis Vuitton)", ticker: "MC.PA", type: "Equity", category: "Luxury", keywords: "lusso moda borse francia" },
+  { label: "Hermès", ticker: "RMS.PA", type: "Equity", category: "Luxury", keywords: "lusso birkin francia" },
+  { label: "Coca-Cola", ticker: "KO", type: "Equity", category: "Food", keywords: "bevande dividendi buffet" },
+  { label: "PepsiCo", ticker: "PEP", type: "Equity", category: "Food", keywords: "bevande patatine snack" },
+  { label: "McDonald's", ticker: "MCD", type: "Equity", category: "Food", keywords: "fast food hamburger" },
+  { label: "Nike", ticker: "NKE", type: "Equity", category: "Luxury", keywords: "sport scarpe moda" },
+  { label: "Disney", ticker: "DIS", type: "Equity", category: "Ent", keywords: "film parchi streaming marvel" },
+  { label: "Starbucks", ticker: "SBUX", type: "Equity", category: "Food", keywords: "caffe colazione" },
+  { label: "Costco", ticker: "COST", type: "Equity", category: "Food", keywords: "supermercato retail" },
+  { label: "Walmart", ticker: "WMT", type: "Equity", category: "Food", keywords: "supermercato retail usa" },
   
-  // --- 📈 ETF STRATEGICI & BILANCIATI (LIFESTRATEGY) ---
-  { label: "Vanguard LifeStrategy 80% Equity", ticker: "VNGA80.MI", isin: "IE00BMVB5R75" },
-  { label: "Vanguard LifeStrategy 60% Equity", ticker: "VNGA60.MI", isin: "IE00BMVB5P51" },
-  { label: "Vanguard LifeStrategy 40% Equity", ticker: "VNGA40.MI", isin: "IE00BMVB5M21" },
-  { label: "Vanguard High Dividend Yield", ticker: "VHYL.MI", isin: "IE00B8GKDB10" },
-  { label: "iShares World Small Cap (Piccole Aziende)", ticker: "IUSN.DE", isin: "IE00BF4RFH31" },
-  { label: "iShares Core EM IMI (Emergenti)", ticker: "EIMI.MI", isin: "IE00BKM4GZ66" },
+  // --- 🏥 HEALTHCARE & PHARMA ---
+  { label: "Johnson & Johnson", ticker: "JNJ", type: "Equity", category: "Health", keywords: "salute farmaci dividendi" },
+  { label: "Pfizer", ticker: "PFE", type: "Equity", category: "Health", keywords: "farmaci vaccini" },
+  { label: "Eli Lilly", ticker: "LLY", type: "Equity", category: "Health", keywords: "farmaci obesità salute" },
+  { label: "Novo Nordisk", ticker: "NVO", type: "Equity", category: "Health", keywords: "farmaci ozempic diabete europa" },
 
-  // --- 💧 SETTORE IDRICO (ACQUA) ---
-  { label: "iShares Global Water", ticker: "IH2O.MI", isin: "IE00B1TXK627" },
-  { label: "Lyxor World Water", ticker: "WAT.MI", isin: "FR0010527275" },
-  { label: "Invesco Water Resources (USA)", ticker: "PHO", isin: "US46137F1003" },
-  { label: "Xylem Inc. (Leader Tecnologie Acqua)", ticker: "XYL", isin: "US98419M1009" },
-  { label: "American Water Works", ticker: "AWK", isin: "US0304201033" },
-
-  // --- 🥇 ORO, ARGENTO & MATERIE PRIME ---
-  { label: "WisdomTree Physical Gold (Oro Fisico)", ticker: "PHAU.MI", isin: "JE00B1VS3770" },
-  { label: "iShares Physical Gold", ticker: "IGLN.L", isin: "IE00B4ND3602" },
-  { label: "WisdomTree Physical Silver (Argento)", ticker: "PHAG.MI", isin: "JE00B1VS3364" },
-  { label: "WisdomTree WTI Crude Oil (Petrolio)", ticker: "CRUD.MI", isin: "GB00B15KXV33" },
-  { label: "Rio Tinto (Minerario)", ticker: "RIO.L", isin: "GB0007188757" },
-  { label: "Glencore (Commodities Trading)", ticker: "GLEN.L", isin: "JE00B4T3BW64" },
-
-  // --- 🇺🇸 ETF USA & TECNOLOGIA ---
-  { label: "Vanguard S&P 500 (VOO)", ticker: "VOO", isin: "US9229083632" },
-  { label: "iShares Core S&P 500 (IVV)", ticker: "IVV", isin: "US4642872000" },
-  { label: "Invesco Nasdaq 100 (Tech)", ticker: "EQQQ.MI", isin: "IE0032077012" },
-  { label: "VanEck Semiconductor (Chip)", ticker: "SMH", isin: "US92189F6768" },
-  { label: "iShares Global Clean Energy", ticker: "INRG.MI", isin: "IE00B1XNHC34" },
-  { label: "iShares Automation & Robotics", ticker: "RBOT.MI", isin: "IE00BYZK4552" },
-  { label: "L&G Cyber Security", ticker: "ISPY.MI", isin: "IE00BYPLS672" },
-
-  // --- 🇪🇺 ETF EUROPA ---
-  { label: "iShares Core STOXX Europe 600", ticker: "MEUD.PA", isin: "DE0002635307" },
-  { label: "Vanguard FTSE Developed Europe", ticker: "VEUR.AS", isin: "IE00B945VV12" },
-  { label: "BNP Paribas CAC 40 (Francia)", ticker: "C40.PA", isin: "FR0010150458" },
-  { label: "iShares Core DAX (Germania)", ticker: "DAXEX.DE", isin: "DE0005933931" },
-
-  // --- 🚀 BIG TECH (MAGNIFICENT 7) ---
-  { label: "NVIDIA Corp.", ticker: "NVDA", isin: "US67066G1040" },
-  { label: "Apple Inc.", ticker: "AAPL", isin: "US0378331005" },
-  { label: "Microsoft Corp.", ticker: "MSFT", isin: "US5949181045" },
-  { label: "Amazon", ticker: "AMZN", isin: "US0231351067" },
-  { label: "Google (Alphabet)", ticker: "GOOGL", isin: "US02079K3059" },
-  { label: "Meta (Facebook)", ticker: "META", isin: "US30303M1027" },
-  { label: "Tesla", ticker: "TSLA", isin: "US88160R1014" },
-  { label: "Palantir", ticker: "PLTR", isin: "US69608A1088" },
-
-  // --- 🇮🇹 ITALIA (I Migliori) ---
-  { label: "Generali Assicurazioni", ticker: "G.MI", isin: "IT0000062072" },
-  { label: "Ferrari", ticker: "RACE.MI", isin: "NL0011585146" },
-  { label: "Intesa Sanpaolo", ticker: "ISP.MI", isin: "IT0000072618" },
-  { label: "Enel", ticker: "ENEL.MI", isin: "IT0003128367" },
-  { label: "Eni", ticker: "ENI.MI", isin: "IT0003132476" },
-  { label: "UniCredit", ticker: "UCG.MI", isin: "IT0004781412" },
-  { label: "Stellantis", ticker: "STLAM.MI", isin: "NL00150001Q9" },
-  { label: "Leonardo", ticker: "LDO.MI", isin: "IT0003856405" },
-  { label: "Moncler", ticker: "MONC.MI", isin: "IT0004965148" },
-
-  // --- ₿ CRYPTO ---
-  { label: "Bitcoin USD", ticker: "BTC-USD", isin: "CRYPTO-BTC" },
-  { label: "Ethereum USD", ticker: "ETH-USD", isin: "CRYPTO-ETH" },
-  { label: "Solana USD", ticker: "SOL-USD", isin: "CRYPTO-SOL" },
+  // --- 🏦 BANCHE USA & FINTECH ---
+  { label: "JPMorgan Chase", ticker: "JPM", type: "Equity", category: "Finance", keywords: "banca usa finanza" },
+  { label: "Bank of America", ticker: "BAC", type: "Equity", category: "Finance", keywords: "banca usa" },
+  { label: "Visa", ticker: "V", type: "Equity", category: "Finance", keywords: "pagamenti carte credito" },
+  { label: "Mastercard", ticker: "MA", type: "Equity", category: "Finance", keywords: "pagamenti carte credito" },
+  { label: "Berkshire Hathaway", ticker: "BRK-B", type: "Equity", category: "Finance", keywords: "warren buffett holding" },
+  { label: "BlackRock", ticker: "BLK", type: "Equity", category: "Finance", keywords: "etf investimenti finanza" },
+  { label: "PayPal", ticker: "PYPL", type: "Equity", category: "Tech", keywords: "pagamenti online fintech" },
 ];

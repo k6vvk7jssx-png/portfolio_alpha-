@@ -1,93 +1,118 @@
 import { NextResponse } from 'next/server';
 import Groq from "groq-sdk";
+import { auth } from "@clerk/nextjs/server";
+
+// --- 1. GESTIONE LIMITI (MEMORY) ---
+const USAGE_TRACKER: Record<string, { date: string; count: number }> = {};
+const DAILY_LIMIT = 2; 
 
 export async function POST(request: Request) {
   try {
-    const GROQ_KEY = process.env.GROQ_API_KEY;
-    const GNEWS_KEY = process.env.GNEWS_API_KEY;
+    // A. CONTROLLO IDENTITÀ (FIX: Aggiunto 'await')
+    const { userId } = await auth();
+    
+    if (!userId) {
+      return NextResponse.json({ error: "Devi essere loggato." }, { status: 401 });
+    }
 
-    if (!GROQ_KEY || !GNEWS_KEY) {
-      return NextResponse.json({ error: "Mancano API Key" });
+    // B. LOGICA BLOCCO GIORNALIERO ⛔
+    const today = new Date().toLocaleDateString('it-IT');
+
+    // Se è un nuovo giorno (o primo accesso), resettiamo il contatore
+    if (!USAGE_TRACKER[userId] || USAGE_TRACKER[userId].date !== today) {
+        USAGE_TRACKER[userId] = { date: today, count: 0 };
+    }
+
+    // Se ha superato il limite, BLOCCA e rispondi con errore 429
+    if (USAGE_TRACKER[userId].count >= DAILY_LIMIT) {
+        return NextResponse.json({ 
+            error: "LIMIT_REACHED", 
+            message: "Hai raggiunto il limite di 2 analisi giornaliere." 
+        }, { status: 429 });
+    }
+
+    // Se passa, incrementiamo il contatore
+    USAGE_TRACKER[userId].count++;
+
+
+    // --- 2. LOGICA AI ---
+    const GROQ_KEY = process.env.GROQ_API_KEY;
+    if (!GROQ_KEY) {
+        // Fallback silenzioso se manca la chiave (per evitare crash)
+        throw new Error("Manca API Key Groq"); 
     }
 
     const body = await request.json();
-    const customQuery = body.query || "Economy"; 
+    const customQuery = body.query; 
 
-    // 1. RECUPERO NEWS (con Piano B automatico)
-    let url = `https://gnews.io/api/v4/search?q=${encodeURIComponent(customQuery)}&lang=en&sortby=publishedAt&max=5&apikey=${GNEWS_KEY}`;
-    let newsResponse = await fetch(url);
-    let newsData = await newsResponse.json();
-    let articles = newsData.articles || [];
-    let isFallback = false;
-
-    if (articles.length === 0) {
-        console.log("⚠️ Attivo Piano B: News Globali");
-        isFallback = true;
-        url = `https://gnews.io/api/v4/search?q=Stock%20Market%20OR%20Global%20Economy&lang=en&sortby=publishedAt&max=5&apikey=${GNEWS_KEY}`;
-        newsResponse = await fetch(url);
-        newsData = await newsResponse.json();
-        articles = newsData.articles || [];
-    }
-
-    if (articles.length === 0) return NextResponse.json({ error: "Nessuna notizia trovata." });
-
-    // 2. ANALISI QUANTITATIVA CON GROQ
-    const groq = new Groq({ apiKey: GROQ_KEY });
-    
-    const contextInstruction = isFallback 
-        ? "Non ci sono news specifiche. Valuta il SENTIMENT MACROECONOMICO GLOBALE e dai un voto alla salute generale dei mercati."
-        : "Valuta la salute specifica di questo portafoglio basandoti sulle news.";
-
+    // C. PROMPT "SHERLOCK HOLMES" 🕵️‍♂️
     const prompt = `
-      Sei un analista finanziario quantitativo.
-      ${contextInstruction}
+      Agisci come un Senior Hedge Fund Manager. Analizza questo portafoglio utente:
+      "${customQuery}"
+
+      OBIETTIVO:
+      Non limitarti a descrivere le aziende. Spiega i COLLEGAMENTI (Supply Chain, Settore, Macroeconomia).
       
-      NEWS:
-      ${articles.map((a: any, i: number) => `${i+1}. ${a.title}`).join('\n')}
+      ESEMPI DI ANALISI CHE VOGLIO:
+      - Invece di "Nvidia fa chip", di': "Nvidia è il motore dell'AI Generativa e traina il settore Tech".
+      - Invece di "Eni è energia", di': "Eni è correlata al prezzo del Brent e ai rischi geopolitici".
 
-      COMPITO:
-      1. Assegna un "Portfolio Health Score" da 0 a 100 (0=Crollo, 100=Boom).
-      2. Calcola la distribuzione del sentiment (deve sommare a 100%).
-      3. Estrai 3 insight chiave.
-
-      Rispondi ESCLUSIVAMENTE con questo formato JSON (no markdown):
+      FORMATO RISPOSTA (JSON STRICT):
+      Rispondi SOLO con questo JSON valido (senza markdown):
       {
-        "score": 75,
-        "rating": "Strong Buy" | "Buy" | "Hold" | "Sell" | "Strong Sell",
-        "sentiment": { "positive": 60, "negative": 10, "neutral": 30 },
+        "score": (numero intero 0-100),
+        "rating": "Strong Buy" | "Buy" | "Hold" | "Sell",
+        "advice": "Consiglio operativo diretto e breve (massimo 20 parole).",
+        "sentiment": { "positive": 0, "neutral": 0, "negative": 0 },
         "insights": [
-          { "title": "Titolo breve", "sentiment": "positive", "reason": "Spiegazione..." }
+          { 
+            "title": "Nome Azienda o Macro-Tema", 
+            "sentiment": "positive" | "negative" | "neutral", 
+            "reason": "Spiegazione profonda del collegamento causa-effetto." 
+          }
         ]
       }
     `;
 
+    // D. CHIAMATA A GROQ
+    const groq = new Groq({ apiKey: GROQ_KEY });
     const completion = await groq.chat.completions.create({
       messages: [{ role: "user", content: prompt }],
       model: "llama-3.1-8b-instant",
-      temperature: 0.3, 
+      temperature: 0.4,
     });
 
     const content = completion.choices[0]?.message?.content || "{}";
-    const jsonString = content.replace(/```json|```/g, '').trim();
     
-    // Estrazione JSON sicura
+    // E. PULIZIA JSON
+    const jsonString = content.replace(/```json/g, '').replace(/```/g, '').trim();
+    
     const firstBrace = jsonString.indexOf('{');
     const lastBrace = jsonString.lastIndexOf('}');
     
     if (firstBrace !== -1 && lastBrace !== -1) {
-        return NextResponse.json(JSON.parse(jsonString.substring(firstBrace, lastBrace + 1)));
+        const cleanJson = jsonString.substring(firstBrace, lastBrace + 1);
+        return NextResponse.json(JSON.parse(cleanJson));
     } else {
-        throw new Error("Formato JSON non valido");
+        throw new Error("Risposta AI non valida");
     }
 
   } catch (error: any) {
-    console.error("ERRORE:", error);
-    // Dati di fallback in caso di errore tecnico
+    console.error("ERRORE AI:", error);
+
+    // F. RETE DI SICUREZZA (FALLBACK) 🛡️
     return NextResponse.json({ 
         score: 50, 
-        rating: "Neutral", 
-        sentiment: { positive: 33, negative: 33, neutral: 34 }, 
-        insights: [{ title: "Errore Tecnico", sentiment: "neutral", reason: "Impossibile calcolare il punteggio ora." }] 
+        rating: "Hold", 
+        advice: "Servizio di analisi momentaneamente non disponibile.",
+        sentiment: { positive: 0, negative: 0, neutral: 100 }, 
+        insights: [
+            { 
+                title: "Errore Connessione AI", 
+                sentiment: "neutral", 
+                reason: "Impossibile contattare l'analista virtuale. Riprova tra poco." 
+            }
+        ] 
     });
   }
 }
