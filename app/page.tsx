@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect } from 'react';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as PieTooltip, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as AreaTooltip } from 'recharts';
-import { Trash2, Search, Loader2, RefreshCw, BarChart3, TrendingUp, AlertTriangle, ShieldCheck } from 'lucide-react';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as AreaTooltip, PieChart, Pie, Cell, ResponsiveContainer, Tooltip as PieTooltip } from 'recharts';
+import { Trash2, Search, Loader2, RefreshCw, BarChart3, TrendingUp, AlertTriangle, ShieldCheck, ChevronRight } from 'lucide-react';
 import { stockList } from './stockList';
 import { SignInButton, SignedIn, SignedOut, UserButton, useUser } from '@clerk/nextjs';
 
@@ -12,11 +12,50 @@ const getDynamicColor = (index: number, strategy: string) => {
   return `hsl(${(160 + index * 45) % 360}, 70%, 50%)`;
 };
 
-export default function Dashboard() {
-  const { user } = useUser();
+export default function Home() {
+  return (
+    <>
+      {/* 1. LANDING PAGE (VISIBILE SOLO SE NON SEI LOGGATO) */}
+      <SignedOut>
+        <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center p-6 relative overflow-hidden">
+           <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0">
+              <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-blue-600 rounded-full blur-[120px] opacity-20 animate-pulse"></div>
+           </div>
+           <div className="relative z-10 text-center space-y-8 max-w-2xl">
+              <h1 className="text-5xl md:text-7xl font-black tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-white via-slate-200 to-slate-500">
+                {APP_NAME}
+              </h1>
+              <div className="pt-8">
+                <SignInButton mode="modal">
+                  <button className="bg-white text-black px-8 py-4 rounded-full font-bold text-lg hover:bg-slate-200 transition-all flex items-center gap-2 mx-auto">
+                    Inizia Ora <ChevronRight className="w-5 h-5"/>
+                  </button>
+                </SignInButton>
+              </div>
+           </div>
+        </div>
+      </SignedOut>
 
+      {/* 2. DASHBOARD (VISIBILE SOLO SE SEI LOGGATO) */}
+      <SignedIn>
+        <Dashboard />
+      </SignedIn>
+    </>
+  );
+}
+
+// --- COMPONENTE PRINCIPALE DELL'APP ---
+function Dashboard() {
+  const { user } = useUser();
   const [assets, setAssets] = useState<any[]>([]);
   const [inputType, setInputType] = useState<'shares' | 'usd'>('shares');
+
+  // --- VARIABILI PER LA RICERCA (FIX ERRORI ROSSI) ---
+  const [searchValue, setSearchValue] = useState('');
+  const [filteredSuggestions, setFilteredSuggestions] = useState<any[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  // ---------------------------------------------------
+
   const [form, setForm] = useState({ ticker: '', strategy: 'Core', value: '' });
   const [livePrices, setLivePrices] = useState<Record<string, number>>({});
   const [chartData, setChartData] = useState<any[]>([]);
@@ -24,6 +63,36 @@ export default function Dashboard() {
   const [loadingChart, setLoadingChart] = useState(false);
   const [analysis, setAnalysis] = useState<any>(null);
   const [loadingNews, setLoadingNews] = useState(false);
+
+  // LOGICA RICERCA LIVE (Chiama /api/search)
+  useEffect(() => {
+    if (!searchValue || searchValue.length < 2) {
+      setFilteredSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+
+    // Aspetta 300ms che l'utente finisca di scrivere
+    const delayDebounceFn = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/search?q=${searchValue}`);
+        if (res.ok) {
+            const data = await res.json();
+            setFilteredSuggestions(data);
+            setShowSuggestions(true);
+        }
+      } catch (error) { console.error(error); }
+    }, 300);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchValue]);
+
+  // Quando clicchi su un suggerimento dal menu a tendina
+  const handleSelectSuggestion = (stock: any) => {
+    setSearchValue(`${stock.ticker} - ${stock.label}`); 
+    setForm({ ...form, ticker: stock.ticker }); 
+    setShowSuggestions(false);
+  };
 
   // Caricamento iniziale
   useEffect(() => {
@@ -37,158 +106,109 @@ export default function Dashboard() {
     }
   }, []);
 
-  // Salvataggio automatico e aggiornamento prezzi
+  // Salvataggio e aggiornamento prezzi
   useEffect(() => {
     localStorage.setItem('portfolio_data', JSON.stringify(assets));
     if (assets.length > 0) updatePrices();
   }, [assets]);
 
-  // Recupero storico quando si seleziona un ticker
+  // Aggiornamento grafico quando cambi selezione
   useEffect(() => {
     if (selectedTicker) fetchHistory(selectedTicker);
   }, [selectedTicker]);
 
-  // --- 1. FUNZIONE PREZZI (CHIAMA IL SERVER) ---
+  // API PREZZI
   const updatePrices = async () => {
     try {
       const tickers = assets.map(a => a.ticker);
       if (tickers.length === 0) return;
-
       const res = await fetch('/api/prices', { 
         method: 'POST', 
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ tickers }) 
       });
-      
-      if (res.ok) {
-        const data = await res.json();
-        setLivePrices(data);
-      }
-    } catch (e) { console.error("Errore prezzi:", e); }
+      if (res.ok) setLivePrices(await res.json());
+    } catch (e) { console.error(e); }
   };
 
-  // --- 2. FUNZIONE HISTORY REALE (RIPRISTINATA) ---
+  // API HISTORY (Usa il tuo file esistente)
   const fetchHistory = async (ticker: string) => {
     setLoadingChart(true);
-    setChartData([]); // Pulisce il grafico vecchio mentre carica
+    setChartData([]);
     try {
       const res = await fetch('/api/history', { 
         method: 'POST', 
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ticker }) 
       });
-      
-      if (res.ok) {
-        const data = await res.json();
-        setChartData(data);
-      }
-    } catch (e) { console.error("Errore history:", e); }
+      if (res.ok) setChartData(await res.json());
+    } catch (e) { console.error(e); }
     setLoadingChart(false);
   };
 
-  // --- 3. AGGIUNTA ASSET (SBLOCCATA "DATABASE INFINITO") ---
+  // AGGIUNTA ASSET
   const addAsset = async () => {
-    if (!form.ticker || !form.value) return;
-    const tickerUpper = form.ticker.toUpperCase(); // Forza maiuscolo
+    // Prende il ticker o dal form nascosto o dalla barra di ricerca
+    const finalTicker = form.ticker || (searchValue.split(' - ')[0] || '').toUpperCase();
+    
+    if (!finalTicker || !form.value) return;
+
     let shares = parseFloat(form.value);
     
-    // Se l'input è in DOLLARI, convertiamo in AZIONI chiedendo il prezzo al volo
+    // Se inserito in USD, converte
     if (inputType === 'usd') {
        try {
-         // Chiediamo il prezzo al server anche se il ticker non è nella stockList
          const res = await fetch('/api/prices', { 
             method: 'POST', 
-            body: JSON.stringify({ tickers: [tickerUpper] }) 
+            body: JSON.stringify({ tickers: [finalTicker] }) 
          });
          const data = await res.json();
-         const price = data[tickerUpper]; // Prende il prezzo reale
-         
-         if (price && price > 0) {
-            shares = shares / price;
-         } else {
-            alert(`Impossibile trovare il prezzo per ${tickerUpper}. Inserisci il numero di azioni manuale.`);
-            return;
-         }
+         const price = data[finalTicker];
+         if (price && price > 0) shares = shares / price;
+         else { alert("Prezzo non trovato."); return; }
        } catch (e) { return; }
     }
 
-    // Cerchiamo info extra nella lista statica, MA se non c'è, creiamo un oggetto generico
-    // Questo permette di aggiungere QUALSIASI ticker (es. una crypto o stock estero)
-    const stockInfo = stockList.find(s => s.ticker === tickerUpper) || { 
-        ticker: tickerUpper, 
-        label: tickerUpper, 
-        isin: 'N/A' 
-    };
-
+    // Cerca info extra (se presenti nella lista statica) oppure usa i dati della ricerca
+    const stockInfo = stockList.find(s => s.ticker === finalTicker);
     const newAsset = { 
         ...form, 
-        ticker: tickerUpper, // Assicura che usiamo il ticker maiuscolo
+        ticker: finalTicker, 
         id: Date.now(), 
         shares,
-        // Se non era nella lista, usiamo il ticker come nome
-        name: stockInfo.label 
+        name: stockInfo ? stockInfo.label : (searchValue.split(' - ')[1] || finalTicker)
     };
 
     const newAssetsList = [...assets, newAsset];
     setAssets(newAssetsList);
-    setSelectedTicker(tickerUpper);
+    setSelectedTicker(finalTicker);
     setForm({ ...form, ticker: '', value: '' });
+    setSearchValue(''); // Pulisce la barra
   };
 
+  // AI ANALYST
   const runAnalysis = async () => {
     setLoadingNews(true);
     setAnalysis(null); 
     try {
-      const portfolioText = assets.map(a => 
-        `${a.shares.toFixed(2)} azioni di ${a.ticker} (${a.strategy})`
-      ).join(', ');
-
-      const query = `
-        Agisci come un analista finanziario senior di Wall Street.
-        Analizza questo portafoglio: ${portfolioText}.
-        IMPORTANTE: Rispondi SOLO con questo JSON valido:
-        {
-          "score": (0-100),
-          "rating": ("BUY", "HOLD", "SELL"),
-          "sentiment": { "positive": %, "neutral": %, "negative": % },
-          "insights": [ { "title": "...", "sentiment": "...", "reason": "..." } ]
-        }
-      `;
-      
-      const res = await fetch('/api/analyze', { 
-        method: 'POST', 
-        body: JSON.stringify({ query }) 
-      });
-      
+      const portfolioText = assets.map(a => `${a.shares.toFixed(2)} azioni di ${a.ticker}`).join(', ');
+      const query = `Analizza come analista senior: ${portfolioText}. Rispondi SOLO JSON: {"score": 0-100, "rating": "BUY/SELL", "sentiment": {"positive": %, "neutral": %, "negative": %}, "insights": [{"title": "...", "sentiment": "...", "reason": "..."}]}`;
+      const res = await fetch('/api/analyze', { method: 'POST', body: JSON.stringify({ query }) });
       const data = await res.json();
-      
-      // Gestione fallback se l'AI risponde male
       let parsedData = data;
       if (data.analysis) {
-         try {
-            const cleanJson = data.analysis.replace(/```json/g, '').replace(/```/g, '');
-            parsedData = JSON.parse(cleanJson);
-         } catch (e) {
-            console.error("Errore parsing AI");
-         }
+         try { parsedData = JSON.parse(data.analysis.replace(/```json/g, '').replace(/```/g, '')); } catch (e) {}
       }
       setAnalysis(parsedData);
     } catch (e) { console.error(e); }
     setLoadingNews(false);
   };
 
-  // Calcoli totali
+  // CALCOLI TOTALI
   const total = assets.reduce((sum, a) => sum + (a.shares * (livePrices[a.ticker] || 0)), 0);
   const coreValue = assets.filter(a => a.strategy === 'Core').reduce((sum, a) => sum + (a.shares * (livePrices[a.ticker] || 0)), 0);
   const satValue = assets.filter(a => a.strategy === 'Satellite').reduce((sum, a) => sum + (a.shares * (livePrices[a.ticker] || 0)), 0);
   const corePct = total > 0 ? Math.round((coreValue / total) * 100) : 0;
   const satPct = total > 0 ? Math.round((satValue / total) * 100) : 0;
-
-  const getScoreColor = (score: number) => {
-    if (score >= 75) return "text-emerald-500";
-    if (score >= 50) return "text-yellow-500";
-    return "text-red-500";
-  };
+  const getScoreColor = (score: number) => score >= 75 ? "text-emerald-500" : score >= 50 ? "text-yellow-500" : "text-red-500";
 
   return (
     <div className="min-h-screen bg-slate-50 p-4 md:p-8 text-slate-900 font-sans">
@@ -197,85 +217,93 @@ export default function Dashboard() {
           <h1 className="text-2xl font-black flex items-center gap-2 tracking-tight">
             <BarChart3 className="text-blue-600"/> {APP_NAME}
           </h1>
-          <SignedIn>
-             <p className="text-xs text-slate-400 mt-1 font-medium">Bentornato, <span className="text-blue-600">{user?.firstName}</span></p>
-          </SignedIn>
+          <p className="text-xs text-slate-400 mt-1 font-medium">Bentornato, <span className="text-blue-600">{user?.firstName}</span></p>
         </div>
-        
         <div className="flex items-center gap-6 mt-4 md:mt-0">
             <div className="text-right">
                 <p className="text-[10px] font-bold text-slate-400 tracking-widest">NET WORTH</p>
                 <p className="text-4xl font-black tracking-tighter">${total.toLocaleString(undefined, {minimumFractionDigits: 2})}</p>
             </div>
-            
             <div className="pl-6 border-l border-slate-200">
-                <SignedOut>
-                    <SignInButton mode="modal">
-                        <button className="bg-slate-900 text-white px-4 py-2 rounded-lg text-xs font-bold hover:bg-slate-800 transition shadow-lg">ACCEDI</button>
-                    </SignInButton>
-                </SignedOut>
-                <SignedIn>
-                    <UserButton afterSignOutUrl="/"/>
-                </SignedIn>
+                <UserButton afterSignOutUrl="/"/>
             </div>
         </div>
       </header>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        {/* COLONNA SINISTRA: INPUT E RICERCA */}
         <div className="lg:col-span-4 space-y-6">
-          <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+          <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 relative z-50">
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Add Position</h2>
+              <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Aggiungi Titolo</h2>
               <div className="flex bg-slate-100 rounded-lg p-1">
-                <button onClick={() => setInputType('shares')} className={`px-3 py-1 text-[10px] font-bold rounded transition-all ${inputType === 'shares' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-400'}`}>SHARES</button>
-                <button onClick={() => setInputType('usd')} className={`px-3 py-1 text-[10px] font-bold rounded transition-all ${inputType === 'usd' ? 'bg-white shadow-sm text-emerald-600' : 'text-slate-400'}`}>USD $</button>
+                <button onClick={() => setInputType('shares')} className={`px-2 py-1 text-[10px] font-bold rounded ${inputType === 'shares' ? 'bg-white shadow text-blue-600' : 'text-slate-400'}`}>SHARES</button>
+                <button onClick={() => setInputType('usd')} className={`px-2 py-1 text-[10px] font-bold rounded ${inputType === 'usd' ? 'bg-white shadow text-emerald-600' : 'text-slate-400'}`}>USD $</button>
               </div>
             </div>
             
-            <div className="space-y-3">
-              <input 
-                list="ticker-suggestions" 
-                placeholder="TICKER (es. AAPL, BTC-USD)" 
-                className="w-full p-3 bg-slate-50 rounded-xl border border-slate-200 font-bold uppercase text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" 
-                value={form.ticker} 
-                onChange={e => setForm({...form, ticker: e.target.value.toUpperCase()})}
-              />
-              <datalist id="ticker-suggestions">
-                {stockList.map((stock, index) => (
-                  <option key={index} value={stock.ticker}>{stock.label}</option>
-                ))}
-              </datalist>
+            <div className="space-y-4">
+              {/* BARRA DI RICERCA */}
+              <div className="relative">
+                <div className="relative">
+                    <Search className="absolute left-3 top-3.5 text-slate-400 w-4 h-4"/>
+                    <input 
+                        type="text"
+                        placeholder="Cerca Ticker (es. NVDA)..." 
+                        className="w-full pl-10 pr-4 py-3 bg-slate-50 rounded-xl border border-slate-200 font-medium text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all shadow-inner" 
+                        value={searchValue} 
+                        onChange={e => setSearchValue(e.target.value)}
+                    />
+                </div>
+                {/* MENU A TENDINA SUGGERIMENTI */}
+                {showSuggestions && filteredSuggestions.length > 0 && (
+                    <div className="absolute top-full left-0 w-full mt-2 bg-white rounded-xl shadow-2xl border border-slate-100 overflow-hidden z-[100] animate-in fade-in zoom-in-95 duration-200">
+                        {filteredSuggestions.map((stock) => (
+                            <div key={stock.ticker} onClick={() => handleSelectSuggestion(stock)} className="p-3 hover:bg-blue-50 cursor-pointer border-b border-slate-50 last:border-0 transition-colors">
+                                <div className="flex justify-between items-center">
+                                    <div>
+                                        <p className="font-bold text-slate-800 text-sm">{stock.ticker}</p>
+                                        <p className="text-xs text-slate-500">{stock.label}</p>
+                                    </div>
+                                    <span className="text-[10px] bg-slate-100 text-slate-400 px-2 py-1 rounded">{stock.type}</span>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+              </div>
 
               <div className="flex gap-2">
-                <button onClick={() => setForm({...form, strategy: 'Core'})} className={`flex-1 py-3 rounded-xl text-[10px] font-bold transition-all ${form.strategy === 'Core' ? 'bg-blue-600 text-white shadow-md shadow-blue-200' : 'bg-slate-50 text-slate-400 border border-slate-200'}`}>CORE</button>
-                <button onClick={() => setForm({...form, strategy: 'Satellite'})} className={`flex-1 py-3 rounded-xl text-[10px] font-bold transition-all ${form.strategy === 'Satellite' ? 'bg-teal-500 text-white shadow-md shadow-teal-200' : 'bg-slate-50 text-slate-400 border border-slate-200'}`}>SAT</button>
+                <button onClick={() => setForm({...form, strategy: 'Core'})} className={`flex-1 py-3 rounded-xl text-[10px] font-bold ${form.strategy === 'Core' ? 'bg-blue-600 text-white' : 'bg-slate-50 text-slate-400'}`}>CORE</button>
+                <button onClick={() => setForm({...form, strategy: 'Satellite'})} className={`flex-1 py-3 rounded-xl text-[10px] font-bold ${form.strategy === 'Satellite' ? 'bg-teal-500 text-white' : 'bg-slate-50 text-slate-400'}`}>SAT</button>
               </div>
-              <input type="number" placeholder={inputType === 'shares' ? "Quantity" : "Invested Amount $"} className="w-full p-3 bg-slate-50 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" value={form.value} onChange={e => setForm({...form, value: e.target.value})}/>
-              <button onClick={addAsset} className="w-full py-3 bg-slate-900 text-white rounded-xl font-bold text-sm hover:bg-slate-800 transition shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">ADD POSITION</button>
+              <input type="number" placeholder={inputType === 'shares' ? "Quantità" : "Importo $"} className="w-full p-3 bg-slate-50 rounded-xl border border-slate-200 text-sm" value={form.value} onChange={e => setForm({...form, value: e.target.value})}/>
+              <button onClick={addAsset} className="w-full py-3 bg-slate-900 text-white rounded-xl font-bold text-sm hover:bg-slate-800 transition">AGGIUNGI</button>
             </div>
           </div>
 
           <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden min-h-[200px]">
-            {assets.length === 0 && <p className="text-center p-8 text-xs text-slate-400 italic">Il portafoglio è vuoto.</p>}
-            {assets.map((a, i) => (
-              <div key={a.id} onClick={() => setSelectedTicker(a.ticker)} className={`p-4 border-b border-slate-100 flex justify-between items-center cursor-pointer transition ${selectedTicker === a.ticker ? 'bg-blue-50/50' : 'hover:bg-slate-50'}`}>
+             {assets.map((a, i) => (
+              <div key={a.id} onClick={() => setSelectedTicker(a.ticker)} className={`p-4 border-b border-slate-100 flex justify-between items-center cursor-pointer ${selectedTicker === a.ticker ? 'bg-blue-50/50' : 'hover:bg-slate-50'}`}>
                 <div className="flex items-center gap-3">
-                  <div className="w-1.5 h-10 rounded-full shadow-sm" style={{backgroundColor: getDynamicColor(i, a.strategy)}}/>
+                  <div className="w-1.5 h-10 rounded-full" style={{backgroundColor: getDynamicColor(i, a.strategy)}}/>
                   <div>
                     <p className="font-black text-sm text-slate-800">{a.ticker}</p>
-                    <p className="text-[10px] text-slate-400 font-bold">{a.strategy.toUpperCase()} • {a.shares.toFixed(2)} sh</p>
+                    <p className="text-[10px] text-slate-400 font-bold">{a.name} • {a.shares.toFixed(2)} sh</p>
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="font-bold text-sm text-slate-700">${((livePrices[a.ticker] || 0) * a.shares).toLocaleString(undefined, {maximumFractionDigits: 0})}</p>
-                  <button onClick={(e) => { e.stopPropagation(); setAssets(assets.filter(x => x.id !== a.id)); }} className="text-red-200 hover:text-red-500 transition"><Trash2 size={14}/></button>
+                  <p className="font-bold text-sm text-slate-700">${((livePrices[a.ticker] || 0) * a.shares).toLocaleString()}</p>
+                  <button onClick={(e) => { e.stopPropagation(); setAssets(assets.filter(x => x.id !== a.id)); }} className="text-red-200 hover:text-red-500"><Trash2 size={14}/></button>
                 </div>
               </div>
             ))}
           </div>
         </div>
 
+        {/* COLONNA DESTRA: GRAFICI E AI */}
         <div className="lg:col-span-8 space-y-6">
+          {/* GRAFICO TREND */}
           <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 h-[350px]">
             <h3 className="text-xs font-bold text-slate-400 uppercase mb-4 tracking-wider flex items-center gap-2">
                 <TrendingUp size={14}/> Trend (7gg): <span className="text-slate-800">{selectedTicker || 'Portafoglio'}</span>
@@ -291,9 +319,9 @@ export default function Dashboard() {
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9"/>
-                    <XAxis dataKey="date" tick={{fontSize: 10, fill: '#94a3b8'}} axisLine={false} tickLine={false} hide={chartData.length === 0}/>
+                    <XAxis dataKey="date" tick={{fontSize: 10}} hide={chartData.length === 0}/>
                     <YAxis hide domain={['auto', 'auto']}/>
-                    <AreaTooltip contentStyle={{backgroundColor: '#fff', borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}} itemStyle={{color: '#1e293b', fontWeight: 'bold', fontSize: '12px'}} />
+                    <AreaTooltip />
                     <Area type="monotone" dataKey="price" stroke="#3b82f6" fillOpacity={1} fill="url(#colorPrice)" strokeWidth={3}/>
                   </AreaChart>
                 </ResponsiveContainer>
@@ -302,89 +330,43 @@ export default function Dashboard() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* TORTA ALLOCATION */}
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 h-[320px] flex flex-col items-center">
-              <div className="w-full flex justify-between items-end mb-2">
-                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Allocation</h3>
-                <div className="text-right">
-                  <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-md">CORE {corePct}%</span>
-                  <span className="mx-1"></span>
-                  <span className="text-[10px] font-bold text-teal-600 bg-teal-50 px-2 py-1 rounded-md">SAT {satPct}%</span>
-                </div>
-              </div>
-              <div className="w-full h-2 bg-slate-100 rounded-full mb-6 overflow-hidden flex">
-                <div style={{ width: `${corePct}%` }} className="h-full bg-blue-600 transition-all duration-1000 ease-out"></div>
-                <div style={{ width: `${satPct}%` }} className="h-full bg-teal-400 transition-all duration-1000 ease-out"></div>
-              </div>
+              <h3 className="text-xs font-bold text-slate-400 uppercase mb-4 w-full text-left">Allocation</h3>
               <div className="h-[200px] w-full relative">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
-                    <Pie data={assets.map((a, i) => ({ name: a.ticker, value: (livePrices[a.ticker] || 0) * a.shares }))} innerRadius={60} outerRadius={80} paddingAngle={4} dataKey="value">
+                    <Pie data={assets.map((a, i) => ({ name: a.ticker, value: (livePrices[a.ticker] || 0) * a.shares }))} innerRadius={60} outerRadius={80} dataKey="value">
                       {assets.map((a, i) => <Cell key={i} fill={getDynamicColor(i, a.strategy)} stroke="none" />)}
                     </Pie>
-                    <PieTooltip contentStyle={{backgroundColor: '#fff', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '12px'}} formatter={(val: any) => [`$${Number(val).toLocaleString()}`, 'Value']} />
+                    <PieTooltip formatter={(val: any) => [`$${Number(val).toLocaleString()}`, 'Value']} />
                   </PieChart>
                 </ResponsiveContainer>
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                    <p className="text-slate-300 font-black text-2xl opacity-20">{assets.length}</p>
-                </div>
               </div>
             </div>
 
+            {/* AI ANALYST */}
             <div className="bg-slate-900 text-white p-6 rounded-2xl shadow-xl border border-slate-800 h-[320px] flex flex-col relative overflow-hidden">
-              <div className="absolute top-0 right-0 p-32 bg-blue-600 rounded-full blur-[80px] opacity-10 -mr-16 -mt-16 pointer-events-none"></div>
-
-              <div className="flex justify-between items-center mb-4 relative z-10">
-                <h3 className="text-xs font-bold text-slate-400 uppercase flex items-center gap-2 tracking-wider"><Search size={14} className="text-blue-400"/> AI Analyst</h3>
-                <button onClick={runAnalysis} className="bg-blue-600 p-2 rounded-lg hover:bg-blue-500 transition shadow-lg shadow-blue-900/50" disabled={loadingNews}>
+               <div className="absolute top-0 right-0 p-32 bg-blue-600 rounded-full blur-[80px] opacity-10 -mr-16 -mt-16 pointer-events-none"></div>
+               <div className="flex justify-between items-center mb-4 relative z-10">
+                <h3 className="text-xs font-bold text-slate-400 uppercase flex items-center gap-2"><Search size={14} className="text-blue-400"/> AI Analyst</h3>
+                <button onClick={runAnalysis} className="bg-blue-600 p-2 rounded-lg hover:bg-blue-500 transition" disabled={loadingNews}>
                   {loadingNews ? <Loader2 size={14} className="animate-spin"/> : <RefreshCw size={14}/>}
                 </button>
               </div>
-
               <div className="overflow-y-auto space-y-4 flex-1 custom-scrollbar relative z-10 pr-1">
-                {!analysis ? (
-                  <div className="h-full flex flex-col items-center justify-center text-slate-500 space-y-2">
-                    <BarChart3 className="w-8 h-8 opacity-20"/>
-                    <p className="text-xs text-center italic">
-                      {loadingNews ? "L'AI sta analizzando i mercati..." : "Premi il bottone blu per generare il report."}
-                    </p>
-                  </div>
-                ) : (
-                  <>
-                    <div className="bg-slate-800/80 p-4 rounded-xl border border-slate-700 backdrop-blur-sm">
-                      <div className="flex justify-between items-end mb-2">
-                        <div>
-                          <p className="text-[9px] text-slate-400 uppercase font-bold tracking-widest">Health Score</p>
-                          <p className={`text-3xl font-black ${getScoreColor(analysis.score)}`}>{analysis.score}<span className="text-sm text-slate-500">/100</span></p>
+                {analysis && (
+                    <div className="bg-slate-800/80 p-4 rounded-xl border border-slate-700">
+                        <p className={`text-3xl font-black ${getScoreColor(analysis.score)}`}>{analysis.score}/100</p>
+                        <p className="text-sm font-bold uppercase">{analysis.rating}</p>
+                        <div className="w-full h-2 bg-slate-950 rounded-full flex overflow-hidden mt-2">
+                           <div style={{width: `${analysis.sentiment.positive}%`}} className="h-full bg-emerald-500"/>
+                           <div style={{width: `${analysis.sentiment.neutral}%`}} className="h-full bg-slate-600"/>
+                           <div style={{width: `${analysis.sentiment.negative}%`}} className="h-full bg-rose-500"/>
                         </div>
-                        <div className="text-right">
-                          <p className={`text-sm font-black uppercase tracking-tight ${getScoreColor(analysis.rating)}`}>{analysis.rating}</p>
-                        </div>
-                      </div>
-                      
-                      <div className="w-full h-2 bg-slate-950 rounded-full flex overflow-hidden mt-3">
-                        <div style={{width: `${analysis.sentiment.positive}%`}} className="h-full bg-emerald-500 transition-all duration-1000" title="Positive"/>
-                        <div style={{width: `${analysis.sentiment.neutral}%`}} className="h-full bg-slate-600 transition-all duration-1000" title="Neutral"/>
-                        <div style={{width: `${analysis.sentiment.negative}%`}} className="h-full bg-rose-500 transition-all duration-1000" title="Negative"/>
-                      </div>
-                      <div className="flex justify-between text-[9px] text-slate-500 mt-2 uppercase font-bold tracking-wider">
-                        <span>Bull {analysis.sentiment.positive}%</span>
-                        <span>Bear {analysis.sentiment.negative}%</span>
-                      </div>
                     </div>
-
-                    {analysis.insights && analysis.insights.map((n: any, i: number) => (
-                      <div key={i} className="bg-slate-800/40 p-3 rounded-xl border border-slate-700/50 hover:bg-slate-800 transition">
-                        <div className="flex gap-2 mb-1 items-center">
-                          {n.sentiment === 'positive' ? <TrendingUp size={12} className="text-emerald-400"/> : 
-                           n.sentiment === 'negative' ? <AlertTriangle size={12} className="text-rose-400"/> : 
-                           <ShieldCheck size={12} className="text-slate-400"/>}
-                          <p className="text-[10px] font-bold uppercase text-slate-200 tracking-wide">{n.title}</p>
-                        </div>
-                        <p className="text-[10px] text-slate-400 leading-relaxed">{n.reason}</p>
-                      </div>
-                    ))}
-                  </>
                 )}
+                {!analysis && <p className="text-center text-xs text-slate-500 mt-10">Premi il tasto per analizzare.</p>}
               </div>
             </div>
           </div>
