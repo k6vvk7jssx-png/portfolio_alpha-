@@ -14,12 +14,15 @@ export async function POST(req: Request) {
 
     for (const ticker of tickers) {
       try {
+        // AGGIUNTO ': any' QUI SOTTO PER RISOLVERE GLI ERRORI ROSSI
         const result: any = await yahooFinance.quote(ticker);
-        // Prende il prezzo, se non c'è prova con altri campi, se no mette 0
-        const price = result.regularMarketPrice || result.currentPrice || result.ask || 0;
+        
+        // Ora TypeScript non si bloccherà più su queste proprietà
+        const price = result.regularMarketPrice || result.currentPrice || result.ask || result.bid || 0;
+        
         prices[ticker] = price;
       } catch (err) {
-        console.error(`Errore prezzo ${ticker}`);
+        console.error(`Prezzo non trovato per ${ticker}`);
         prices[ticker] = 0; 
       }
     }
@@ -27,6 +30,7 @@ export async function POST(req: Request) {
     return NextResponse.json(prices);
     
   } catch (error) {
+    console.error("Errore server prezzi:", error);
     return NextResponse.json({}, { status: 500 });
   }
 }
